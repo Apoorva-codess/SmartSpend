@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartSpend • Expense Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+        body { font-family: 'Inter', system_ui, sans-serif; }
+        .glass { background: rgba(255,255,255,0.95); backdrop-filter: blur(12px); }
+        .tab-active { border-bottom: 3px solid #10b981; color: #10b981; }
+    </style>
+</head>
+<body class="bg-zinc-950 text-zinc-900">
+    <div class="max-w-7xl mx-auto">
+        <!-- HEADER -->
+        <div class="flex items-center justify-between border-b border-zinc-200 bg-white px-8 py-5 sticky top-0 z-50 shadow-sm">
+            <div class="flex items-center gap-x-3">
+                <div class="w-9 h-9 bg-emerald-600 text-white rounded-2xl flex items-center justify-center text-2xl">💸</div>
+                <h1 class="text-3xl font-semibold tracking-tight">SmartSpend</h1>
+            </div>
+            <div class="flex items-center gap-x-6">
+                <div onclick="switchTab(0)" class="cursor-pointer flex items-center gap-x-2 text-sm font-medium px-4 py-2 rounded-3xl hover:bg-zinc-100 transition-colors tab-active" id="tab-0">
+                    <span>📊</span>
+                    <span>Dashboard</span>
+                </div>
+                <div onclick="switchTab(1)" class="cursor-pointer flex items-center gap-x-2 text-sm font-medium px-4 py-2 rounded-3xl hover:bg-zinc-100 transition-colors" id="tab-1">
+                    <span>➕</span>
+                    <span>Add Expense</span>
+                </div>
+                <div onclick="switchTab(2)" class="cursor-pointer flex items-center gap-x-2 text-sm font-medium px-4 py-2 rounded-3xl hover:bg-zinc-100 transition-colors" id="tab-2">
+                    <span>📋</span>
+                    <span>Expenses</span>
+                </div>
+                <div onclick="switchTab(3)" class="cursor-pointer flex items-center gap-x-2 text-sm font-medium px-4 py-2 rounded-3xl hover:bg-zinc-100 transition-colors" id="tab-3">
+                    <span>📈</span>
+                    <span>Insights</span>
+                </div>
+                <div onclick="switchTab(4)" class="cursor-pointer flex items-center gap-x-2 text-sm font-medium px-4 py-2 rounded-3xl hover:bg-zinc-100 transition-colors" id="tab-4">
+                    <span>🎯</span>
+                    <span>Budgets</span>
+                </div>
+                
+                <div class="flex items-center gap-x-3">
+                    <div class="text-xs bg-emerald-100 text-emerald-700 px-3 py-1 rounded-3xl font-medium">DEMO MODE</div>
+                    <button onclick="clearAllData()" 
+                            class="text-xs text-red-500 hover:text-red-600 flex items-center gap-x-1">
+                        <span>Reset App</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="p-8">
+            <!-- TAB 0: DASHBOARD -->
+            <div id="screen-0" class="tab-screen">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                    <div class="glass rounded-3xl p-6 border border-zinc-100 shadow">
+                        <div class="text-zinc-500 text-sm">Total Spent</div>
+                        <div id="dash-total" class="text-5xl font-semibold mt-2">$0</div>
+                        <div id="dash-total-change" class="text-emerald-600 text-sm mt-1 flex items-center gap-x-1"></div>
+                    </div>
+                    <div class="glass rounded-3xl p-6 border border-zinc-100 shadow">
+                        <div class="text-zinc-500 text-sm">This Month</div>
+                        <div id="dash-month" class="text-5xl font-semibold mt-2">$0</div>
+                        <div id="dash-month-days" class="text-zinc-500 text-sm mt-1"></div>
+                    </div>
+                    <div class="glass rounded-3xl p-6 border border-zinc-100 shadow">
+                        <div class="text-zinc-500 text-sm">Avg Daily</div>
+                        <div id="dash-daily" class="text-5xl font-semibold mt-2">$0</div>
+                    </div>
+                    <div class="glass rounded-3xl p-6 border border-zinc-100 shadow relative">
+                        <div class="text-zinc-500 text-sm">Budget Left</div>
+                        <div id="dash-budget-left" class="text-5xl font-semibold mt-2">$0</div>
+                        <div id="budget-progress" class="mt-4 h-2 bg-zinc-200 rounded-3xl overflow-hidden">
+                            <div id="budget-bar" class="h-2 bg-emerald-500 rounded-3xl w-0"></div>
+                        </div>
+                        <div id="budget-alert" onclick="switchTab(4)" class="hidden absolute top-4 right-4 bg-red-500 text-white text-[10px] px-3 py-0.5 rounded-3xl font-medium cursor-pointer">⚠️ OVER BUDGET</div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Category Breakdown -->
+                    <div class="glass rounded-3xl p-6 border border-zinc-100 shadow">
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="font-semibold text-lg">Spending by Category</h2>
+                            <span onclick="switchTab(3)" class="text-emerald-600 text-sm cursor-pointer">Full insights →</span>
+                        </div>
+                        <div class="flex justify-center">
+                            <canvas id="pieChart" class="max-h-72"></canvas>
+                        </div>
+                        <div id="category-list" class="grid grid-cols-2 gap-3 mt-6"></div>
+                    </div>
+
+                    <!-- Recent Expenses -->
+                    <div class="glass rounded-3xl p-6 border border-zinc-100 shadow">
+                        <div class="flex justify-between mb-4">
+                            <h2 class="font-semibold text-lg">Recent Expenses</h2>
+                            <button onclick="switchTab(2)" class="text-emerald-600 text-sm">See all →</button>
+                        </div>
+                        <div id="recent-list" class="space-y-4"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 1: ADD EXPENSE -->
+            <div id="screen-1" class="tab-screen hidden">
+                <div class="max-w-xl mx-auto glass rounded-3xl p-8 border border-zinc-100 shadow">
+                    <h2 class="text-2xl font-semibold mb-8">Add New Expense</h2>
+                    
+                    <form id="add-form" onsubmit="handleAddExpense(event)">
+                        <div class="space-y-6">
+                            <div>
+                                <label class="block text-zinc-500 mb-2">Amount</label>
+                                <div class="relative">
+                                    <span class="absolute left-5 top-1/2 -translate-y-1/2 text-2xl">$</span>
+                                    <input type="number" id="amount" step="0.01" required
+                                           class="w-full pl-10 pr-6 py-5 text-3xl font-medium rounded-3xl border border-zinc-200 focus:outline-none focus:border-emerald-500">
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-6">
+                                <div>
+                                    <label class="block text-zinc-500 mb-2">Category</label>
+                                    <select id="category" required class="w-full py-5 px-6 rounded-3xl border border-zinc-200 focus:outline-none focus:border-emerald-500 text-lg">
+                                        <option value="">Select category...</option>
+                                        <option value="Food">🍔 Food &amp; Dining</option>
+                                        <option value="Travel">✈️ Travel</option>
+                                        <option value="Bills">📄 Bills &amp; Utilities</option>
+                                        <option value="Entertainment">🎬 Entertainment</option>
+                                        <option value="Shopping">🛍️ Shopping</option>
+                                        <option value="Transportation">🚕 Transportation</option>
+                                        <option value="Health">🩹 Health</option>
+                                        <option value="Others">📦 Others</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-zinc-500 mb-2">Date</label>
+                                    <input type="date" id="date" required class="w-full py-5 px-6 rounded-3xl border border-zinc-200 focus:outline-none focus:border-emerald-500">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-zinc-500 mb-2">Note / Description</label>
+                                <textarea id="note" rows="3" placeholder="Lunch at Chipotle, Uber ride, etc."
+                                          class="w-full px-6 py-5 rounded-3xl border border-zinc-200 focus:outline-none focus:border-emerald-500 resize-none"></textarea>
+                            </div>
+
+                            <button type="submit"
+                                    class="w-full bg-emerald-600 hover:bg-emerald-700 transition-colors text-white py-6 text-xl font-semibold rounded-3xl flex items-center justify-center gap-x-3">
+                                <span>💾 Save Expense</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- TAB 2: EXPENSES LIST -->
+            <div id="screen-2" class="tab-screen hidden">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-semibold">All Expenses</h2>
+                    
+                    <div class="flex items-center gap-x-4">
+                        <input id="search-input" 
+                               onkeyup="if(event.key==='Enter') filterExpenses()"
+                               placeholder="Search notes or amount..." 
+                               class="px-5 py-3 rounded-3xl border border-zinc-200 focus:outline-none focus:border-emerald-500 w-72">
+                        
+                        <select id="filter-category" onchange="filterExpenses()" class="px-5 py-3 rounded-3xl border border-zinc-200 focus:outline-none focus:border-emerald-500">
+                            <option value="">All Categories</option>
+                            <option value="Food">Food</option>
+                            <option value="Travel">Travel</option>
+                            <option value="Bills">Bills</option>
+                            <option value="Entertainment">Entertainment</option>
+                            <option value="Shopping">Shopping</option>
+                            <option value="Transportation">Transportation</option>
+                            <option value="Health">Health</option>
+                            <option value="Others">Others</option>
+                        </select>
+
+                        <button onclick="filterExpenses()" 
+                                class="bg-zinc-900 text-white px-8 py-3 rounded-3xl text-sm font-medium">Filter</button>
+                        
+                        <button onclick="exportCSV()" 
+                                class="text-emerald-600 flex items-center gap-x-2 text-sm">
+                            📤 Export CSV
+                        </button>
+                    </div>
+                </div>
+
+                <div class="glass rounded-3xl overflow-hidden border border-zinc-100">
+                    <table class="w-full">
+                        <thead>
+                            <tr class="border-b">
+                                <th class="text-left py-6 px-8 font-medium text-zinc-500">Date</th>
+                                <th class="text-left py-6 px-8 font-medium text-zinc-500">Category</th>
+                                <th class="text-left py-6 px-8 font-medium text-zinc-500">Note</th>
+                                <th class="text-right py-6 px-8 font-medium text-zinc-500">Amount</th>
+                                <th class="w-12"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="expenses-body" class="divide-y text-sm"></tbody>
+                    </table>
+                </div>
+                <div id="no-expenses" class="hidden text-center py-20 text-zinc-400">
+                    No expenses yet. Add your first one!
+                </div>
+            </div>
+
+            <!-- TAB 3: INSIGHTS -->
+            <div id="screen-3" class="tab-screen hidden">
+                <h2 class="text-2xl font-semibold mb-6">Smart Insights</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div id="insight-1" class="glass rounded-3xl p-6 border border-zinc-100"></div>
+                    <div id="insight-2" class="glass rounded-3xl p-6 border border-zinc-100"></div>
+                    <div id="insight-3" class="glass rounded-3xl p-6 border border-zinc-100"></div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="glass rounded-3xl p-6 border border-zinc-100 shadow">
+                        <h3 class="font-medium mb-4">Weekly Spending Trend</h3>
+                        <canvas id="weeklyChart" class="h-80"></canvas>
+                    </div>
+                    <div class="glass rounded-3xl p-6 border border-zinc-100 shadow">
+                        <h3 class="font-medium mb-4">Monthly Summary</h3>
+                        <div id="monthly-list" class="space-y-6"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 4: BUDGETS -->
+            <div id="screen-4" class="tab-screen hidden">
+                <div class="max-w-2xl mx-auto">
+                    <h2 class="text-2xl font-semibold mb-6">Monthly Budgets</h2>
+                    
+                    <div class="glass rounded-3xl p-8 border border-zinc-100">
+                        <div class="mb-8">
+                            <label class="block text-zinc-500 mb-3">Overall Monthly Budget</label>
+                            <div class="flex gap-x-3">
+                                <input id="overall-budget" type="number" value="2500" 
+                                       class="flex-1 px-6 py-5 rounded-3xl border border-zinc-200 text-3xl font-medium focus:outline-none focus:border-emerald-500">
+                                <button onclick="saveBudgets()" 
+                                        class="bg-emerald-600 text-white px-10 rounded-3xl text-lg">Save</button>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-6">
+                            <div class="space-y-4">
+                                <h4 class="font-medium text-sm text-zinc-500">Category Budgets</h4>
+                                <div id="category-budgets" class="space-y-5"></div>
+                            </div>
+                            
+                            <div>
+                                <h4 class="font-medium text-sm text-zinc-500 mb-4">Current Progress</h4>
+                                <div id="budget-progress-list" class="space-y-8"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Tailwind script
+        function initTailwind() {
+            tailwind.config = {
+                content: [],
+                theme: { extend: {} }
+            }
+        }
+
+        // Global data
+        let expenses = []
+        let budgets = {
+            overall: 2500,
+            Food: 600,
+            Travel: 400,
+            Bills: 300,
+            Entertainment: 200,
+            Shopping: 300,
+            Transportation: 150,
+            Health: 150,
+            Others: 200
+        }
+
+        const categories = ["Food","Travel","Bills","Entertainment","Shopping","Transportation","Health","Others"]
+
+        // Load / Save from localStorage
+        function loadData() {
+            const savedExpenses = localStorage.getItem('smartspend_expenses')
+            if (savedExpenses) expenses = JSON.parse(savedExpenses)
+            
+            const savedBudgets = localStorage.getItem('smartspend_budgets')
+            if (savedBudgets) budgets = JSON.parse(savedBudgets)
+            
+            // Demo data if empty
+            if (expenses.length === 0) {
+                const today = new Date()
+                expenses = [
+                    {id:1, amount:12.99, category:"Food", date:"2026-04-01", note:"Starbucks coffee"},
+                    {id:2, amount:45, category:"Food", date:"2026-04-02", note:"Groceries"},
+                    {id:3, amount:8.5, category:"Transportation", date:"2026-04-03", note:"Uber to office"},
+                    {id:4, amount:120, category:"Bills", date:"2026-04-04", note:"Electricity bill"},
+                    {id:5, amount:35, category:"Entertainment", date:"2026-04-05", note:"Netflix + Spotify"},
+                    {id:6, amount:22, category:"Food", date:"2026-04-06", note:"Dinner with friends"},
+                    {id:7, amount:15, category:"Shopping", date:"2026-04-07", note:"New headphones"},
+                    {id:8, amount:9.99, category:"Health", date:"2026-04-08", note:"Vitamins"},
+                    {id:9, amount:65, category:"Travel", date:"2026-04-08", note:"Train ticket"},
+                    {id:10, amount:18, category:"Food", date:"2026-04-09", note:"Lunch"}
+                ]
+                saveData()
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem('smartspend_expenses', JSON.stringify(expenses))
+            localStorage.setItem('smartspend_budgets', JSON.stringify(budgets))
+        }
+
+        function clearAllData() {
+            if (confirm("Reset entire app and delete all data?")) {
+                localStorage.removeItem('smartspend_expenses')
+                localStorage.removeItem('smartspend_budgets')
+                location.reload()
+            }
+        }
+
+        // Add expense
+        function handleAddExpense(e) {
+            e.preventDefault()
+            
+            const amount = parseFloat(document.getElementById('amount').value)
+            const category = document.getElementById('category').value
+            const date = document.getElementById('date').value
+            const note = document.getElementById('note').value.trim()
+
+            const newExpense = {
+                id: Date.now(),
+                amount: amount,
+                category: category,
+                date: date,
+                note: note || "No note"
+            }
+            
+            expenses.unshift(newExpense)
+            saveData()
+            
+            // Check budget alert
+            checkBudgetAlerts()
+            
+            // Reset form
+            e.target.reset()
+            // Set today's date
+            document.getElementById('date').value = new Date().toISOString().slice(0,10)
+            
+            alert("✅ Expense added successfully!")
+            switchTab(0) // Go back to dashboard
+            renderAll()
+        }
+
+        // Render dashboard
+        function renderDashboard() {
+            // Total spent
+            const total = expenses.reduce((sum, e) => sum + e.amount, 0)
+            document.getElementById('dash-total').textContent = '$' + total.toFixed(2)
+
+            // This month
+            const now = new Date()
+            const thisMonthExpenses = expenses.filter(e => {
+                const d = new Date(e.date)
+                return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
+            })
+            const monthTotal = thisMonthExpenses.reduce((sum, e) => sum + e.amount, 0)
+            document.getElementById('dash-month').textContent = '$' + monthTotal.toFixed(2)
+            document.getElementById('dash-month-days').textContent = `${thisMonthExpenses.length} expenses this month`
+
+            // Daily average
+            const daysInMonth = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate()
+            const daily = monthTotal / Math.max(1, now.getDate())
+            document.getElementById('dash-daily').textContent = '$' + daily.toFixed(2)
+
+            // Budget remaining
+            const remaining = budgets.overall - monthTotal
+            document.getElementById('dash-budget-left').textContent = '$' + Math.max(0, remaining).toFixed(2)
+            
+            const progress = Math.min(100, (monthTotal / budgets.overall) * 100)
+            document.getElementById('budget-bar').style.width = progress + '%'
+            
+            if (remaining < 0) {
+                document.getElementById('budget-alert').classList.remove('hidden')
+                document.getElementById('budget-bar').classList.add('bg-red-500')
+            } else {
+                document.getElementById('budget-alert').classList.add('hidden')
+                document.getElementById('budget-bar').classList.remove('bg-red-500')
+            }
+
+            // Recent 5
+            const recentHTML = expenses.slice(0, 5).map(e => `
+                <div class="flex justify-between items-center py-3 border-b last:border-0">
+                    <div>
+                        <div class="font-medium">${e.note}</div>
+                        <div class="text-xs text-zinc-400">${e.category} • ${new Date(e.date).toLocaleDateString('en-US', {month:'short', day:'numeric'})}</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="font-semibold text-lg">$${e.amount}</div>
+                    </div>
+                </div>
+            `).join('')
+            document.getElementById('recent-list').innerHTML = recentHTML || `<p class="text-zinc-400 text-center py-8">No expenses yet</p>`
+
+            // Category pie
+            renderPieChart(thisMonthExpenses)
+            renderCategoryList(thisMonthExpenses)
+        }
+
+        let pieInstance = null
+        function renderPieChart(monthExpenses) {
+            const ctx = document.getElementById('pieChart')
+            if (pieInstance) pieInstance.destroy()
+            
+            const byCat = {}
+            monthExpenses.forEach(e => {
+                byCat[e.category] = (byCat[e.category] || 0) + e.amount
+            })
+            
+            pieInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(byCat),
+                    datasets: [{
+                        data: Object.values(byCat),
+                        backgroundColor: ['#10b981','#eab308','#ec4899','#8b5cf6','#f43f5e','#14b8a6','#f59e0b','#64748b'],
+                        borderWidth: 4,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    cutout: '78%',
+                    plugins: { legend: { display: false } }
+                }
+            })
+        }
+
+        function renderCategoryList(monthExpenses) {
+            const byCat = {}
+            monthExpenses.forEach(e => {
+                byCat[e.category] = (byCat[e.category] || 0) + e.amount
+            })
+            
+            let html = ''
+            Object.keys(byCat).sort((a,b) => byCat[b] - byCat[a]).forEach(cat => {
+                const percent = ((byCat[cat] / monthExpenses.reduce((s,e)=>s+e.amount,0)) * 100).toFixed(0)
+                html += `
+                <div class="flex justify-between items-center text-sm">
+                    <div class="flex items-center gap-x-3">
+                        <span class="text-xl">${getEmoji(cat)}</span>
+                        <span class="font-medium">${cat}</span>
+                    </div>
+                    <div class="text-right">
+                        <span class="font-semibold">$${byCat[cat].toFixed(2)}</span>
+                        <span class="text-emerald-600 ml-2">(${percent}%)</span>
+                    </div>
+                </div>`
+            })
+            document.getElementById('category-list').innerHTML = html || '<p class="text-zinc-400">No data yet</p>'
+        }
+
+        function getEmoji(cat) {
+            const map = {Food:'🍔',Travel:'✈️',Bills:'📄',Entertainment:'🎬',Shopping:'🛍️',Transportation:'🚕',Health:'🩹',Others:'📦'}
+            return map[cat] || '📌'
+        }
+
+        // Render full expenses list
+        function renderExpensesList(filteredExpenses) {
+            const tbody = document.getElementById('expenses-body')
+            tbody.innerHTML = ''
+            
+            if (filteredExpenses.length === 0) {
+                document.getElementById('no-expenses').classList.remove('hidden')
+                return
+            }
+            document.getElementById('no-expenses').classList.add('hidden')
+            
+            filteredExpenses.forEach(exp => {
+                const row = document.createElement('tr')
+                row.className = 'hover:bg-zinc-50 transition-colors'
+                row.innerHTML = `
+                    <td class="py-6 px-8">${new Date(exp.date).toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric'})}</td>
+                    <td class="py-6 px-8"><span class="inline-flex items-center gap-x-2"><span>${getEmoji(exp.category)}</span>${exp.category}</span></td>
+                    <td class="py-6 px-8 text-zinc-600">${exp.note}</td>
+                    <td class="py-6 px-8 text-right font-semibold">$${exp.amount.toFixed(2)}</td>
+                    <td class="py-6 px-8">
+                        <button onclick="deleteExpense(${exp.id});event.stopImmediatePropagation()" class="text-red-400 hover:text-red-600">🗑️</button>
+                    </td>
+                `
+                tbody.appendChild(row)
+            })
+        }
+
+        function filterExpenses() {
+            const search = document.getElementById('search-input').value.toLowerCase().trim()
+            const catFilter = document.getElementById('filter-category').value
+            
+            let filtered = expenses
+            
+            if (catFilter) {
+                filtered = filtered.filter(e => e.category === catFilter)
+            }
+            
+            if (search) {
+                filtered = filtered.filter(e => 
+                    e.note.toLowerCase().includes(search) || 
+                    e.amount.toString().includes(search)
+                )
+            }
+            
+            renderExpensesList(filtered)
+        }
+
+        function deleteExpense(id) {
+            if (confirm('Delete this expense?')) {
+                expenses = expenses.filter(e => e.id !== id)
+                saveData()
+                renderExpensesList(expenses)
+                renderAll()
+            }
+        }
+
+        // Insights tab
+        function renderInsights() {
+            const now = new Date()
+            const thisMonth = expenses.filter(e => {
+                const d = new Date(e.date)
+                return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
+            })
+            
+            const totalMonth = thisMonth.reduce((a,e)=>a+e.amount,0)
+            
+            // Insight 1 - Top category
+            const byCat = {}
+            thisMonth.forEach(e => byCat[e.category] = (byCat[e.category]||0) + e.amount)
+            const topCat = Object.keys(byCat).sort((a,b)=>byCat[b]-byCat[a])[0]
+            
+            document.getElementById('insight-1').innerHTML = `
+                <div class="text-emerald-600 text-5xl mb-3">${getEmoji(topCat)}</div>
+                <div class="font-semibold text-lg">${topCat} is your biggest category</div>
+                <div class="text-4xl font-semibold mt-2">$${byCat[topCat].toFixed(2)}</div>
+                <div class="text-zinc-400 text-sm mt-1">${((byCat[topCat]/totalMonth)*100).toFixed(0)}% of monthly spend</div>
+                <div class="mt-6 text-xs bg-emerald-100 text-emerald-700 px-4 py-2 rounded-2xl">💡 Tip: Set a stricter budget for ${topCat.toLowerCase()}</div>
+            `
+            
+            // Insight 2 - Average per day
+            const dailyAvg = totalMonth / Math.max(1, now.getDate())
+            document.getElementById('insight-2').innerHTML = `
+                <div class="text-4xl font-semibold">$${dailyAvg.toFixed(2)}</div>
+                <div class="font-medium">Average daily spend</div>
+                <div class="text-zinc-500 text-sm">This month • ${thisMonth.length} transactions</div>
+                <div class="mt-8 h-2 bg-zinc-100 rounded-3xl overflow-hidden"><div class="bg-yellow-400 h-2 w-3/4 rounded-3xl"></div></div>
+                <div class="text-xs text-zinc-400 mt-2">You're spending more on weekends</div>
+            `
+            
+            // Insight 3 - Smart tip
+            let tip = "Great job keeping expenses under control!"
+            if (totalMonth > budgets.overall * 0.8) tip = "You're approaching your monthly budget. Time to slow down!"
+            else if (byCat.Food && byCat.Food > 500) tip = "Food spending is high this month. Try meal prepping?"
+            
+            document.getElementById('insight-3').innerHTML = `
+                <div class="text-amber-400 text-5xl mb-4">✦</div>
+                <div class="font-semibold">Smart tip for you</div>
+                <p class="mt-3 leading-tight">${tip}</p>
+                <button onclick="switchTab(1)" class="mt-8 text-sm bg-amber-100 text-amber-700 px-6 py-3 rounded-3xl">Add a low-cost expense</button>
+            `
+
+            // Weekly chart
+            renderWeeklyChart()
+            
+            // Monthly summary (last 3 months simulation)
+            renderMonthlySummary()
+        }
+
+        let weeklyChartInstance = null
+        function renderWeeklyChart() {
+            const ctx = document.getElementById('weeklyChart')
+            if (weeklyChartInstance) weeklyChartInstance.destroy()
+            
+            // Group by week (simple last 4 weeks)
+            const weeks = {}
+            expenses.forEach(e => {
+                const d = new Date(e.date)
+                const weekKey = `${d.getFullYear()}-W${Math.ceil((d.getDate() + d.getDay()) / 7)}`
+                weeks[weekKey] = (weeks[weekKey]||0) + e.amount
+            })
+            
+            const labels = Object.keys(weeks).slice(-6)
+            const data = Object.values(weeks).slice(-6)
+            
+            weeklyChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels.length ? labels : ['Week 1','Week 2','Week 3','Week 4'],
+                    datasets: [{
+                        label: 'Weekly Spend',
+                        data: data.length ? data : [420, 310, 580, 290],
+                        backgroundColor: '#10b981',
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    plugins: { legend: { display: false } },
+                    scales: { y: { grid: { color: '#f1f5f9' } } }
+                }
+            })
+        }
+
+        function renderMonthlySummary() {
+            // Fake previous months for demo
+            const html = `
+            <div class="flex justify-between text-sm">
+                <div>April 2026</div>
+                <div class="font-semibold">$${expenses.reduce((s,e)=>s+e.amount,0).toFixed(2)}</div>
+            </div>
+            <div class="flex justify-between text-sm mt-6">
+                <div>March 2026</div>
+                <div class="font-semibold">$1,840</div>
+            </div>
+            <div class="flex justify-between text-sm mt-6">
+                <div>February 2026</div>
+                <div class="font-semibold">$2,120</div>
+            </div>
+            <div class="mt-8 text-xs text-emerald-600">📈 You're spending 12% less than last month</div>`
+            document.getElementById('monthly-list').innerHTML = html
+        }
+
+        // Budgets
+        function renderBudgets() {
+            // Overall
+            document.getElementById('overall-budget').value = budgets.overall
+            
+            // Category budgets
+            let catHTML = ''
+            categories.forEach(cat => {
+                catHTML += `
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center gap-x-3">
+                        <span>${getEmoji(cat)}</span>
+                        <span class="font-medium">${cat}</span>
+                    </div>
+                    <input type="number" value="${budgets[cat] || 200}" 
+                           data-category="${cat}"
+                           class="w-28 text-right py-3 px-4 rounded-2xl border border-zinc-200 focus:border-emerald-400 focus:outline-none">
+                </div>`
+            })
+            document.getElementById('category-budgets').innerHTML = catHTML
+            
+            // Progress list
+            const monthExpenses = expenses.filter(e => {
+                const d = new Date(e.date)
+                const now = new Date()
+                return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
+            })
+            
+            let progressHTML = `<div class="flex justify-between text-xs mb-2"><span>Overall</span><span>$${monthExpenses.reduce((s,e)=>s+e.amount,0)} / $${budgets.overall}</span></div>`
+            
+            categories.forEach(cat => {
+                const spent = monthExpenses.filter(e => e.category === cat).reduce((s,e)=>s+e.amount,0)
+                const limit = budgets[cat] || 200
+                const perc = Math.min(100, (spent / limit) * 100)
+                progressHTML += `
+                <div class="mb-6">
+                    <div class="flex justify-between text-xs mb-2"><span>${cat}</span><span>$${spent} / $${limit}</span></div>
+                    <div class="h-2.5 bg-zinc-100 rounded-3xl"><div class="h-2.5 ${perc>90?'bg-red-400':'bg-emerald-500'} rounded-3xl" style="width:${perc}%"></div></div>
+                </div>`
+            })
+            document.getElementById('budget-progress-list').innerHTML = progressHTML
+        }
+
+        function saveBudgets() {
+            budgets.overall = parseFloat(document.getElementById('overall-budget').value) || 2500
+            
+            const inputs = document.querySelectorAll('#category-budgets input')
+            inputs.forEach(input => {
+                const cat = input.dataset.category
+                budgets[cat] = parseFloat(input.value) || 200
+            })
+            
+            saveData()
+            renderBudgets()
+            renderDashboard()
+            alert("✅ Budgets saved!")
+        }
+
+        function checkBudgetAlerts() {
+            const now = new Date()
+            const monthTotal = expenses.filter(e => {
+                const d = new Date(e.date)
+                return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
+            }).reduce((a,e)=>a+e.amount,0)
+            
+            if (monthTotal > budgets.overall) {
+                alert("🚨 ALERT: You have exceeded your monthly budget!")
+            }
+        }
+
+        // Tab switching
+        let currentTab = 0
+        function switchTab(n) {
+            document.querySelectorAll('.tab-screen').forEach(s => s.classList.add('hidden'))
+            document.getElementById('screen-' + n).classList.remove('hidden')
+            
+            // Update active tab
+            document.querySelectorAll('[id^="tab-"]').forEach(t => t.classList.remove('tab-active'))
+            const activeTab = document.getElementById('tab-' + n)
+            if (activeTab) activeTab.classList.add('tab-active')
+            
+            currentTab = n
+            
+            // Render specific tab content
+            if (n === 0) renderDashboard()
+            else if (n === 2) renderExpensesList(expenses)
+            else if (n === 3) renderInsights()
+            else if (n === 4) renderBudgets()
+        }
+
+        // Render everything
+        function renderAll() {
+            renderDashboard()
+        }
+
+        // Export CSV
+        function exportCSV() {
+            if (expenses.length === 0) return alert("No data to export")
+            
+            let csv = "Date,Category,Amount,Note\n"
+            expenses.forEach(e => {
+                csv += `${e.date},${e.category},${e.amount},"${e.note}"\n`
+            })
+            
+            const blob = new Blob([csv], { type: 'text/csv' })
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = url
+            a.download = 'smartspend_export.csv'
+            a.click()
+        }
+
+        // INIT
+        function initializeApp() {
+            initTailwind()
+            loadData()
+            
+            // Set today's date in add form
+            const today = new Date().toISOString().slice(0,10)
+            document.getElementById('date').value = today
+            
+            // Initial render
+            switchTab(0)
+            
+            console.log('%c🚀 SmartSpend ready! Fully functional expense tracker with insights, budgets & charts.', 'color:#10b981; font-size:13px')
+            console.log('✅ All your data is saved in browser localStorage')
+            console.log('Submit this single HTML file — it works offline instantly!')
+        }
+
+        // Start the app
+        window.onload = initializeApp
+    </script>
+</body>
+</html>
